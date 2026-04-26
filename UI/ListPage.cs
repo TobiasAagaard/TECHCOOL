@@ -28,6 +28,7 @@ namespace TECHCOOL.UI
         Dictionary<ConsoleKey, Action<T>> keyActions = new();
         List<T> records;
         int selected_index = 0;
+        int scroll_offset = 0;
         bool select = false;
         int last_draw_height = 0;
 
@@ -145,11 +146,17 @@ namespace TECHCOOL.UI
 
             // draw contents
 
+            int viewportHeight = Math.Max(1, Console.WindowHeight - 5);
+            EnsureSelectedVisible(viewportHeight);
+            int visibleCount = Math.Min(viewportHeight, records.Count - scroll_offset);
+
             sb.Clear();
-            var i = 0;
-            foreach (T r in records)
+            for (int i = 0; i < visibleCount; i++)
             {
-                if (select && selected_index == i++)
+                int absoluteIndex = scroll_offset + i;
+                T r = records[absoluteIndex];
+
+                if (select && selected_index == absoluteIndex)
                 {
                     Console.BackgroundColor = Screen.FocusBackground;
                     Console.ForegroundColor = Screen.FocusForeground;
@@ -182,8 +189,20 @@ namespace TECHCOOL.UI
             Console.WriteLine(sb.ToString());
             Console.WriteLine($"{selected_index + 1} / {records.Count}");
 
-            // top border + header + mid border + rows + bottom border + status
-            last_draw_height = 5 + records.Count;
+
+            last_draw_height = 5 + visibleCount;
+        }
+
+        void EnsureSelectedVisible(int viewportHeight)
+        {
+            if (selected_index < scroll_offset)
+                scroll_offset = selected_index;
+            else if (selected_index >= scroll_offset + viewportHeight)
+                scroll_offset = selected_index - viewportHeight + 1;
+
+            int maxOffset = Math.Max(0, records.Count - viewportHeight);
+            if (scroll_offset > maxOffset) scroll_offset = maxOffset;
+            if (scroll_offset < 0) scroll_offset = 0;
         }
 
         void ClearRegion(int left, int top, int height)
@@ -222,8 +241,6 @@ namespace TECHCOOL.UI
                     ClearRegion(x, y, last_draw_height);
                 Console.SetCursorPosition(x, y);
                 Draw();
-                // If the console scrolled while drawing, the captured y is stale.
-                // Re-anchor it from where the cursor actually ended up.
                 int endY = Console.GetCursorPosition().Top;
                 y = Math.Max(0, endY - last_draw_height);
 
