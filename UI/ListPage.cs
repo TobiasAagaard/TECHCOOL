@@ -29,6 +29,7 @@ namespace TECHCOOL.UI
         List<T> records;
         int selected_index = 0;
         bool select = false;
+        int last_draw_height = 0;
 
         public ListPage(List<T> contents=null)
         {
@@ -104,10 +105,9 @@ namespace TECHCOOL.UI
 
         public void Draw()
         {
-            //Screen.Clear();
             StringBuilder sb = new StringBuilder();
             int total_width = getWidth();
-            if (total_width < 2) return;
+            if (total_width < 2) { last_draw_height = 0; return; }
 
             // build horizontalt line graphics
             string UH_LINE = "" + NW_CORNER;
@@ -182,7 +182,23 @@ namespace TECHCOOL.UI
             Console.WriteLine(sb.ToString());
             Console.WriteLine($"{selected_index + 1} / {records.Count}");
 
-            Console.SetCursorPosition(0, selected_index);
+            // top border + header + mid border + rows + bottom border + status
+            last_draw_height = 5 + records.Count;
+        }
+
+        void ClearRegion(int left, int top, int height)
+        {
+            int width = Math.Min(getWidth(), Console.WindowWidth - left);
+            if (width <= 0 || height <= 0) return;
+            string blank = new string(' ', width);
+            int bufferHeight = Console.BufferHeight;
+            for (int i = 0; i < height; i++)
+            {
+                int row = top + i;
+                if (row < 0 || row >= bufferHeight) continue;
+                Console.SetCursorPosition(left, row);
+                Console.Write(blank);
+            }
         }
 
         public int getWidth() {
@@ -202,8 +218,15 @@ namespace TECHCOOL.UI
             (x,y) = Console.GetCursorPosition();
             do
             {
-                Console.SetCursorPosition(x,y);
+                if (last_draw_height > 0)
+                    ClearRegion(x, y, last_draw_height);
+                Console.SetCursorPosition(x, y);
                 Draw();
+                // If the console scrolled while drawing, the captured y is stale.
+                // Re-anchor it from where the cursor actually ended up.
+                int endY = Console.GetCursorPosition().Top;
+                y = Math.Max(0, endY - last_draw_height);
+
                 key = Console.ReadKey(true).Key;
                 switch (key)
                 {
