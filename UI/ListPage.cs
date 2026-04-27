@@ -107,8 +107,30 @@ namespace TECHCOOL.UI
         public void Draw()
         {
             StringBuilder sb = new StringBuilder();
+            (int startLeft, int startTop) = Console.GetCursorPosition();
+
+            int maxSafeWidth = Console.WindowWidth - startLeft - 1;
+            if (maxSafeWidth <= 0)
+            {
+                last_draw_height = 0;
+                return;
+            }
+
             int total_width = getWidth();
-            if (total_width < 2) { last_draw_height = 0; return; }
+            if (total_width < 2 || total_width > maxSafeWidth)
+            {
+                Console.Write("Window is too narrow for this list make it wider and click arrow keys to refresh");
+                last_draw_height = 1;
+                return;
+            }
+
+            int rowsAvailable = Console.WindowHeight - startTop;
+            if (rowsAvailable < 5)
+            {
+                Console.Write("Window is too short for this list make it taller and click arrow keys to refresh");
+                last_draw_height = 1;
+                return;
+            }
 
             // build horizontalt line graphics
             string UH_LINE = "" + NW_CORNER;
@@ -146,9 +168,10 @@ namespace TECHCOOL.UI
 
             // draw contents
 
-            int viewportHeight = Math.Max(1, Console.WindowHeight - 5);
+            int viewportHeight = Math.Max(0, rowsAvailable - 5);
             EnsureSelectedVisible(viewportHeight);
-            int visibleCount = Math.Min(viewportHeight, records.Count - scroll_offset);
+            int remainingRecords = Math.Max(0, records.Count - scroll_offset);
+            int visibleCount = Math.Min(viewportHeight, remainingRecords);
 
             sb.Clear();
             for (int i = 0; i < visibleCount; i++)
@@ -187,7 +210,8 @@ namespace TECHCOOL.UI
             }
             sb.Append(LH_LINE);
             Console.WriteLine(sb.ToString());
-            Console.WriteLine($"{selected_index + 1} / {records.Count}");
+            int selectedDisplay = records.Count > 0 ? selected_index + 1 : 0;
+            Console.Write($"{selectedDisplay} / {records.Count}");
 
 
             last_draw_height = 5 + visibleCount;
@@ -195,6 +219,21 @@ namespace TECHCOOL.UI
 
         void EnsureSelectedVisible(int viewportHeight)
         {
+            if (records.Count == 0)
+            {
+                selected_index = 0;
+                scroll_offset = 0;
+                return;
+            }
+
+            selected_index = Math.Clamp(selected_index, 0, records.Count - 1);
+
+            if (viewportHeight <= 0)
+            {
+                scroll_offset = selected_index;
+                return;
+            }
+
             if (selected_index < scroll_offset)
                 scroll_offset = selected_index;
             else if (selected_index >= scroll_offset + viewportHeight)
@@ -207,7 +246,7 @@ namespace TECHCOOL.UI
 
         void ClearRegion(int left, int top, int height)
         {
-            int width = Math.Min(getWidth(), Console.WindowWidth - left);
+            int width = Console.WindowWidth - left - 1;
             if (width <= 0 || height <= 0) return;
             string blank = new string(' ', width);
             int bufferHeight = Console.BufferHeight;
@@ -237,12 +276,14 @@ namespace TECHCOOL.UI
             (x,y) = Console.GetCursorPosition();
             do
             {
-                if (last_draw_height > 0)
-                    ClearRegion(x, y, last_draw_height);
+                x = Math.Clamp(x, 0, Math.Max(0, Console.WindowWidth - 1));
+                y = Math.Clamp(y, 0, Math.Max(0, Console.WindowHeight - 1));
+
+                int clearHeight = Math.Max(last_draw_height, Console.WindowHeight - y);
+                if (clearHeight > 0)
+                    ClearRegion(x, y, clearHeight);
                 Console.SetCursorPosition(x, y);
                 Draw();
-                int endY = Console.GetCursorPosition().Top;
-                y = Math.Max(0, endY - last_draw_height);
 
                 key = Console.ReadKey(true).Key;
                 switch (key)
