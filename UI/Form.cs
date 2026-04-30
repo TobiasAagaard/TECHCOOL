@@ -99,6 +99,7 @@ namespace TECHCOOL.UI
                 field_edit_index = Math.Clamp(field_edit_index, 0, fields.Count - 1);
                 Draw();
                 key = Console.ReadKey(true);
+                try {
                 switch (key.Key)
                 {
                     case ConsoleKey.Enter:
@@ -129,6 +130,15 @@ namespace TECHCOOL.UI
                         break;
                     case ConsoleKey.Escape:
                         return recordChanged;
+                }
+                }
+                catch (Exception ex)
+                {
+                    Console.SetCursorPosition(0, y + fields.Count + 2);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: " + ex.Message);
+                    Console.WriteLine("Press any key to continue...");
+                    Console.ReadKey(true);
                 }
 
             }
