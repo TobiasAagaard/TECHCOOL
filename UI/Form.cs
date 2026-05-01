@@ -55,6 +55,13 @@ namespace TECHCOOL.UI
             fields.Add(title, new SelectBox { Title = title, Property = property, Options = options });
             return this;
         }
+
+        public Form<T> SearchBox(string title, string property, Func<string, List<(string, object)>> search)
+        {
+            fields.Add(title, new SearchBox { Title = title, Property = property, Search = search });
+            return this;
+        }
+        
         public void AddOption(string field, string option, object value)
         {
             if (!fields.ContainsKey(field))
@@ -138,7 +145,13 @@ namespace TECHCOOL.UI
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Error: " + ex.Message);
                     Console.WriteLine("Press any key to continue...");
+                    Console.ForegroundColor = ConsoleColor.White;
                     Console.ReadKey(true);
+                }
+                finally
+                {
+                    Console.SetCursorPosition(0, y + fields.Count + 2);
+                    Console.WriteLine(new string(' ', Console.WindowWidth));
                 }
 
             }
@@ -358,6 +371,151 @@ namespace TECHCOOL.UI
 
 
             Console.Write($"{{0,-{FieldWidth}}}", Value);
+            Screen.ColorDefault();
+        }
+    }
+
+    public class SearchBox : Field
+    {
+        const int MaxVisibleResults = 5;
+
+        object value;
+        string display = "";
+        public Func<string, List<(string, object)>> Search;
+        public override object Value
+        {
+            get { return value; }
+            set
+            {
+                this.value = value;
+                this.display = value?.ToString() ?? "";
+            }
+        }
+        int left = 0;
+        int top = 0;
+        int index = 0;
+        int lastDrawnRows = 0;
+        List<(string display, object value)> searchResults = new();
+
+        public override void Enter()
+        {
+            if (Search == null) return;
+
+            string searchTerm = "";
+            searchResults = new();
+            index = 0;
+            bool stop = false;
+
+            Console.CursorVisible = true;
+
+            do
+            {
+                DrawSearchTerm(searchTerm);
+                DrawResults();
+
+                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                switch (keyInfo.Key)
+                {
+                    case ConsoleKey.Enter:
+                        if (searchResults.Count > 0)
+                        {
+                            var picked = searchResults[index];
+                            value = picked.value;
+                            display = picked.display;
+                        }
+                        stop = true;
+                        break;
+                    case ConsoleKey.Escape:
+                        stop = true;
+                        break;
+                    case ConsoleKey.UpArrow:
+                        if (index > 0) index--;
+                        break;
+                    case ConsoleKey.DownArrow:
+                        int visible = Math.Min(searchResults.Count, MaxVisibleResults);
+                        if (index < visible - 1) index++;
+                        break;
+                    case ConsoleKey.Backspace:
+                        if (searchTerm.Length > 0)
+                        {
+                            searchTerm = searchTerm[..^1];
+                            searchResults = searchTerm.Length > 0
+                                ? Search(searchTerm) ?? new()
+                                : new();
+                            index = 0;
+                        }
+                        break;
+                    default:
+                        if (!char.IsControl(keyInfo.KeyChar))
+                        {
+                            searchTerm += keyInfo.KeyChar;
+                            searchResults = Search(searchTerm) ?? new();
+                            index = 0;
+                        }
+                        break;
+                }
+            } while (!stop);
+
+            ClearResultArea();
+            Console.CursorVisible = false;
+            Screen.ColorDefault();
+        }
+
+        void DrawSearchTerm(string term)
+        {
+            Console.SetCursorPosition(left + LabelWidth, top);
+            Screen.ColorEdit();
+            string shown = term.Length > FieldWidth ? term[^FieldWidth..] : term;
+            Console.Write(shown.PadRight(FieldWidth));
+            Screen.ColorDefault();
+            Console.SetCursorPosition(left + LabelWidth + shown.Length, top);
+        }
+
+        void DrawResults()
+        {
+            int visible = Math.Min(searchResults.Count, MaxVisibleResults);
+            for (int i = 0; i < visible; i++)
+            {
+                Console.SetCursorPosition(left + LabelWidth, top + 1 + i);
+                if (i == index) Screen.ColorFocus();
+                else Screen.ColorField();
+                string text = searchResults[i].display ?? "";
+                if (text.Length > FieldWidth) text = text[..FieldWidth];
+                Console.Write(text.PadRight(FieldWidth));
+            }
+            for (int i = visible; i < lastDrawnRows; i++)
+            {
+                Console.SetCursorPosition(left + LabelWidth, top + 1 + i);
+                Screen.ColorDefault();
+                Console.Write(new string(' ', FieldWidth));
+            }
+            lastDrawnRows = visible;
+            Screen.ColorDefault();
+        }
+
+        void ClearResultArea()
+        {
+            Screen.ColorDefault();
+            for (int i = 0; i < lastDrawnRows; i++)
+            {
+                Console.SetCursorPosition(left + LabelWidth, top + 1 + i);
+                Console.Write(new string(' ', FieldWidth));
+            }
+            lastDrawnRows = 0;
+        }
+
+        public override void Draw(int left, int top)
+        {
+            this.left = left;
+            this.top = top;
+            Console.SetCursorPosition(left, top);
+            Console.Write("{0,-" + LabelWidth + "}", Title);
+            if (Focus) Screen.ColorFocus();
+            else Screen.ColorField();
+
+            string text = display ?? "";
+            if (text.Length > FieldWidth) text = text[..FieldWidth];
+            Console.Write("{0,-" + FieldWidth + "}", text);
             Screen.ColorDefault();
         }
     }
