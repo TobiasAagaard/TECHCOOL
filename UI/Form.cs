@@ -49,6 +49,11 @@ namespace TECHCOOL.UI
             fields.Add(title, new DoubleBox { Title = title, Property = property });
             return this;
         }
+        public Form<T> DecimalBox(string title, string property)
+        {
+            fields.Add(title, new DecimalBox { Title = title, Property = property });
+            return this;
+        }
         public Form<T> SelectBox(string title, string property, Dictionary<string, object> options = null)
         {
             if (options == null) options = new();
@@ -213,7 +218,7 @@ namespace TECHCOOL.UI
             bool ok;
             string input;
             Console.CursorVisible = true;
-            
+
             Console.SetCursorPosition(left + LabelWidth, top);
             Screen.ColorEdit();
             Console.WriteLine(Value);
@@ -251,7 +256,7 @@ namespace TECHCOOL.UI
 
         public override string ToString()
         {
-            return value==null ? "" : value.ToString();
+            return value == null ? "" : value.ToString();
         }
 
     }
@@ -286,6 +291,23 @@ namespace TECHCOOL.UI
             set
             {
                 double.TryParse(value.ToString(), out this.value);
+            }
+        }
+        public override string ToString()
+        {
+            return value.ToString();
+        }
+
+    }
+    public class DecimalBox : TextBox
+    {
+        decimal value;
+        public override object Value
+        {
+            get => value;
+            set
+            {
+                decimal.TryParse(value.ToString(), out this.value);
             }
         }
         public override string ToString()
